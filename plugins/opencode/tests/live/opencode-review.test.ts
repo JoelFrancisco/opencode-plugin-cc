@@ -18,7 +18,7 @@ describe.skipIf(!LIVE_ENABLED)("live opencode review (Layer C, real API calls)",
     const result = runCompanion(["review"], {
       cwd: repo.path,
       env: process.env,
-      timeoutMs: 180_000,
+      timeoutMs: 300_000,
     });
     expect(result.status).toBe(0);
     expect(result.stdout.length).toBeGreaterThan(100);
@@ -32,11 +32,11 @@ describe.skipIf(!LIVE_ENABLED)("live opencode review (Layer C, real API calls)",
       const result = runCompanion(["review", "--model", model], {
         cwd: repo.path,
         env: process.env,
-        timeoutMs: 180_000,
+        timeoutMs: 300_000,
       });
       expect(result.status).toBe(0);
       expect(result.stdout.length).toBeGreaterThan(100);
     },
-    240_000,
+    420_000,
   );
 });
