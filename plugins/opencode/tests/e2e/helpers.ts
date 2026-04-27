@@ -79,14 +79,36 @@ export function runCompanion(
   };
 }
 
-export interface FakeOpencodeCall {
+export interface FakeOpencodeRunCall {
   readonly args: string[];
   readonly prompt: string;
   readonly cwd: string;
   readonly ts: string;
 }
 
-export function readFakeLog(logPath: string): FakeOpencodeCall[] {
+export interface FakeOpencodeMessageCall {
+  readonly kind: "message";
+  readonly sessionId: string;
+  readonly body: {
+    readonly parts?: ReadonlyArray<{ type: string; text?: string }>;
+    readonly model?: { providerID: string; modelID: string };
+  };
+  readonly ts: string;
+}
+
+export interface FakeOpencodeServeStart {
+  readonly kind: "serve-start";
+  readonly port: number;
+  readonly host: string;
+  readonly pid: number;
+}
+
+export type FakeOpencodeEntry =
+  | FakeOpencodeRunCall
+  | FakeOpencodeMessageCall
+  | FakeOpencodeServeStart;
+
+export function readFakeLog(logPath: string): FakeOpencodeEntry[] {
   let raw: string;
   try {
     raw = readFileSync(logPath, "utf8");
@@ -96,11 +118,20 @@ export function readFakeLog(logPath: string): FakeOpencodeCall[] {
   return raw
     .split("\n")
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as FakeOpencodeCall);
+    .map((line) => JSON.parse(line) as FakeOpencodeEntry);
 }
 
-export function findRunCall(logPath: string): FakeOpencodeCall | undefined {
-  return readFakeLog(logPath).find((call) => call.args[0] === "run");
+export function findRunCall(logPath: string): FakeOpencodeRunCall | undefined {
+  return readFakeLog(logPath).find(
+    (entry): entry is FakeOpencodeRunCall =>
+      "args" in entry && Array.isArray(entry.args) && entry.args[0] === "run",
+  );
+}
+
+export function findMessageCall(logPath: string): FakeOpencodeMessageCall | undefined {
+  return readFakeLog(logPath).find(
+    (entry): entry is FakeOpencodeMessageCall => "kind" in entry && entry.kind === "message",
+  );
 }
 
 export function fakeOpencodeEnv(repo: TmpRepo): NodeJS.ProcessEnv {

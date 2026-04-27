@@ -2,7 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fakeOpencodeEnv, findRunCall, mkTmpRepo, runCompanion, type TmpRepo } from "./helpers.js";
+import {
+  fakeOpencodeEnv,
+  findMessageCall,
+  mkTmpRepo,
+  runCompanion,
+  type TmpRepo,
+} from "./helpers.js";
 
 function jobIdFromStdout(stdout: string): string {
   const match = stdout.match(/opencode review started: (\S+)/);
@@ -79,7 +85,7 @@ describe("companion jobs (e2e, Layer A)", () => {
     runCompanion(["review", "--background"], { cwd: repo.path, env: envFor() });
     const result = runCompanion(["result"], { cwd: repo.path, env: envFor() });
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("# Fake Review");
+    expect(result.stdout).toContain("Fake Broker Review");
   });
 
   it("result --job <id> targets a specific job", () => {
@@ -92,7 +98,7 @@ describe("companion jobs (e2e, Layer A)", () => {
       env: envFor(),
     });
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("# Fake Review");
+    expect(result.stdout).toContain("Fake Broker Review");
   });
 
   it("cancel marks the job as cancelled", () => {
@@ -112,15 +118,25 @@ describe("companion jobs (e2e, Layer A)", () => {
     expect(["cancelled", "completed"]).toContain(persisted.status);
   });
 
-  it("--background forwards --model to opencode", () => {
-    const model = "anthropic/claude-sonnet-4-6";
-    runCompanion(["review", "--background", "--model", model], {
+  it("--background forwards --model to opencode (parsed providerID/modelID)", () => {
+    runCompanion(["review", "--background", "--model", "anthropic/claude-sonnet-4-6"], {
       cwd: repo.path,
       env: envFor(),
     });
-    const call = findRunCall(repo.log);
-    expect(call?.args).toContain("--model");
-    expect(call?.args).toContain(model);
+    const call = findMessageCall(repo.log);
+    expect(call?.body.model).toEqual({
+      providerID: "anthropic",
+      modelID: "claude-sonnet-4-6",
+    });
+  });
+
+  it("--background tracks the broker session id in JobState", () => {
+    const start = runCompanion(["review", "--background"], { cwd: repo.path, env: envFor() });
+    const id = jobIdFromStdout(start.stdout);
+    const status = runCompanion(["status", "--json"], { cwd: repo.path, env: envFor() });
+    const jobs = JSON.parse(status.stdout) as Array<{ id: string; sessionId?: string }>;
+    const tracked = jobs.find((job) => job.id === id);
+    expect(tracked?.sessionId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("status reports 'No opencode reviews' when none exist", () => {

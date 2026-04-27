@@ -120,6 +120,29 @@ describe("OpencodeClient", () => {
     await expect(client.createSession()).rejects.toThrow(/400.*bad input/);
   });
 
+  it("listSessions GETs /session with directory and limit query params", async () => {
+    nextResponse = {
+      status: 200,
+      body: JSON.stringify([{ id: "s1", title: "review" }]),
+    };
+    const client = new OpencodeClient(endpoint);
+    const result = await client.listSessions({ directory: "/tmp/repo", limit: 5 });
+    expect(captured[0]?.method).toBe("GET");
+    expect(captured[0]?.path).toContain("/session?");
+    expect(captured[0]?.path).toContain("directory=%2Ftmp%2Frepo");
+    expect(captured[0]?.path).toContain("limit=5");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe("s1");
+  });
+
+  it("listSessions accepts no params", async () => {
+    nextResponse = { status: 200, body: "[]" };
+    const client = new OpencodeClient(endpoint);
+    const result = await client.listSessions();
+    expect(captured[0]?.path).toBe("/session");
+    expect(result).toEqual([]);
+  });
+
   it("deleteSession DELETEs /session/:id and tolerates an empty body", async () => {
     nextResponse = { status: 200, body: "true" };
     const client = new OpencodeClient(endpoint);

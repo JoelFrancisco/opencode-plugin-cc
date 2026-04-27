@@ -89,10 +89,17 @@ if (subcommand === "serve") {
     if (req.method === "POST" && url === "/session") {
       consumeBody(req, () => {
         const id = randomUUID();
-        sessions.set(id, { id });
+        const now = Date.now();
+        sessions.set(id, { id, title: "review", time: { created: now, updated: now } });
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ id }));
       });
+      return;
+    }
+    if (req.method === "GET" && (url === "/session" || url.startsWith("/session?"))) {
+      const list = Array.from(sessions.values());
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(list));
       return;
     }
     const messageMatch = url.match(/^\/session\/([^/]+)\/message$/);
