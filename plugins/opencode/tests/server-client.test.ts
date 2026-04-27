@@ -55,7 +55,9 @@ describe("OpencodeClient", () => {
     nextResponse = { status: 200, body: JSON.stringify({ id: "s1" }) };
     const client = new OpencodeClient(endpoint);
     await client.createSession();
-    expect(captured[0]?.auth).toBe(`Basic ${Buffer.from(":test-password").toString("base64")}`);
+    expect(captured[0]?.auth).toBe(
+      `Basic ${Buffer.from("opencode:test-password").toString("base64")}`,
+    );
   });
 
   it("createSession POSTs to /session and returns the parsed body", async () => {

@@ -49,10 +49,23 @@ describe.skipIf(!LIVE_ENABLED)("real opencode serve broker (Layer C)", () => {
       );
     }
 
-    const endpoint = readLockfile(repo.path);
-    expect(endpoint).not.toBeNull();
-    if (endpoint === null) return;
-    const client = new OpencodeClient(endpoint);
-    expect(await client.ping()).toBe(true);
+    // readLockfile reads from getStateDir() in this process, so we need the
+    // override here too — the companion ran with OPENCODE_PLUGIN_STATE_DIR set,
+    // but the test process inherits the harness's default.
+    const previousStateDir = process.env["OPENCODE_PLUGIN_STATE_DIR"];
+    process.env["OPENCODE_PLUGIN_STATE_DIR"] = stateDir;
+    try {
+      const endpoint = readLockfile(repo.path);
+      expect(endpoint).not.toBeNull();
+      if (endpoint === null) return;
+      const client = new OpencodeClient(endpoint);
+      expect(await client.ping()).toBe(true);
+    } finally {
+      if (previousStateDir === undefined) {
+        delete process.env["OPENCODE_PLUGIN_STATE_DIR"];
+      } else {
+        process.env["OPENCODE_PLUGIN_STATE_DIR"] = previousStateDir;
+      }
+    }
   }, 240_000);
 });

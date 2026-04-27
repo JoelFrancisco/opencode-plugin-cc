@@ -13,5 +13,6 @@ export interface ModelRef {
     readonly modelID: string;
 }
 export declare function parseModelRef(value: string): ModelRef;
+export declare const OPENCODE_SERVER_USERNAME = "opencode";
 export declare function buildAuthHeader(password: string): string;
 export declare function buildBaseUrl(endpoint: ServerEndpoint): string;

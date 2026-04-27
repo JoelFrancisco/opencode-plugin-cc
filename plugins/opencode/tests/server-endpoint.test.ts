@@ -49,11 +49,11 @@ describe("parseModelRef", () => {
 });
 
 describe("auth + url helpers", () => {
-  it("buildAuthHeader produces a Basic header with empty username", () => {
+  it("buildAuthHeader produces a Basic header with the opencode username", () => {
     const header = buildAuthHeader("secret");
     expect(header.startsWith("Basic ")).toBe(true);
     const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
-    expect(decoded).toBe(":secret");
+    expect(decoded).toBe("opencode:secret");
   });
 
   it("buildBaseUrl assembles host and port", () => {

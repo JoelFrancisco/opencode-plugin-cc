@@ -69,7 +69,7 @@ if (subcommand === "serve") {
     process.exit(2);
   }
   const expectedAuth = process.env.OPENCODE_SERVER_PASSWORD
-    ? `Basic ${Buffer.from(`:${process.env.OPENCODE_SERVER_PASSWORD}`).toString("base64")}`
+    ? `Basic ${Buffer.from(`opencode:${process.env.OPENCODE_SERVER_PASSWORD}`).toString("base64")}`
     : null;
 
   const sessions = new Map();

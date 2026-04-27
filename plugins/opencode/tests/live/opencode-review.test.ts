@@ -15,14 +15,18 @@ describe.skipIf(!LIVE_ENABLED)("live opencode review (Layer C, real API calls)",
   });
 
   it("runs a real review and returns substantive output", () => {
-    const result = runCompanion(["review"], {
+    const result = runCompanion(["review", "--no-broker"], {
       cwd: repo.path,
       env: process.env,
       timeoutMs: 300_000,
     });
-    expect(result.status).toBe(0);
+    if (result.status !== 0) {
+      throw new Error(
+        `companion exit ${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+      );
+    }
     expect(result.stdout.length).toBeGreaterThan(100);
-  }, 240_000);
+  }, 420_000);
 
   it.skipIf(!process.env["OPENCODE_LIVE_MODEL"])(
     "real review with explicit --model passes through to opencode",

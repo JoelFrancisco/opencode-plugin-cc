@@ -17,8 +17,12 @@ export function parseModelRef(value) {
         modelID: value.slice(slash + 1),
     };
 }
+// opencode's basicAuth middleware uses username "opencode" by default
+// (overridable via OPENCODE_SERVER_USERNAME). Hono's basicAuth checks both,
+// so we send "opencode:<password>" rather than the empty-username form.
+export const OPENCODE_SERVER_USERNAME = "opencode";
 export function buildAuthHeader(password) {
-    return `Basic ${Buffer.from(`:${password}`).toString("base64")}`;
+    return `Basic ${Buffer.from(`${OPENCODE_SERVER_USERNAME}:${password}`).toString("base64")}`;
 }
 export function buildBaseUrl(endpoint) {
     return `http://${endpoint.host}:${endpoint.port}`;
