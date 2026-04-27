@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch-with-timeout.js";
 import {
   buildAuthHeader,
   buildBaseUrl,
@@ -41,17 +42,17 @@ export class OpencodeClient {
   constructor(private readonly endpoint: ServerEndpoint) {}
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const init: RequestInit = {
+    const init: RequestInit & { timeoutMs: number } = {
       method,
       headers: {
         Authorization: buildAuthHeader(this.endpoint.password),
         "Content-Type": "application/json",
       },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      timeoutMs: REQUEST_TIMEOUT_MS,
     };
     if (body !== undefined) init.body = JSON.stringify(body);
 
-    const res = await fetch(`${buildBaseUrl(this.endpoint)}${path}`, init);
+    const res = await fetchWithTimeout(`${buildBaseUrl(this.endpoint)}${path}`, init);
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new Error(
@@ -66,9 +67,9 @@ export class OpencodeClient {
 
   async ping(): Promise<boolean> {
     try {
-      const res = await fetch(`${buildBaseUrl(this.endpoint)}/doc`, {
+      const res = await fetchWithTimeout(`${buildBaseUrl(this.endpoint)}/doc`, {
         headers: { Authorization: buildAuthHeader(this.endpoint.password) },
-        signal: AbortSignal.timeout(2_000),
+        timeoutMs: 2_000,
       });
       return res.ok;
     } catch {

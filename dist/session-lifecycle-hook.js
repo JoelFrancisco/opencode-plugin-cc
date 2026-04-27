@@ -22,4 +22,6 @@ function main() {
         return 0;
     }
 }
-process.exit(main());
+// Use process.exitCode so Node drains stdio before terminating; piped
+// callers (Claude Code's hook runner) need stdout to flush.
+process.exitCode = main();

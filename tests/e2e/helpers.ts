@@ -104,10 +104,17 @@ export interface FakeOpencodeServeStart {
   readonly pid: number;
 }
 
+export interface FakeOpencodeDeleteSession {
+  readonly kind: "delete-session";
+  readonly sessionId: string;
+  readonly ts: string;
+}
+
 export type FakeOpencodeEntry =
   | FakeOpencodeRunCall
   | FakeOpencodeMessageCall
-  | FakeOpencodeServeStart;
+  | FakeOpencodeServeStart
+  | FakeOpencodeDeleteSession;
 
 export function readFakeLog(logPath: string): FakeOpencodeEntry[] {
   let raw: string;
@@ -132,6 +139,13 @@ export function findRunCall(logPath: string): FakeOpencodeRunCall | undefined {
 export function findMessageCall(logPath: string): FakeOpencodeMessageCall | undefined {
   return readFakeLog(logPath).find(
     (entry): entry is FakeOpencodeMessageCall => "kind" in entry && entry.kind === "message",
+  );
+}
+
+export function findDeleteSession(logPath: string): FakeOpencodeDeleteSession | undefined {
+  return readFakeLog(logPath).find(
+    (entry): entry is FakeOpencodeDeleteSession =>
+      "kind" in entry && entry.kind === "delete-session",
   );
 }
 

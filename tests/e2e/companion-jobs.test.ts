@@ -101,6 +101,44 @@ describe("companion jobs (e2e, Layer A)", () => {
     expect(result.stdout).toContain("Fake Broker Review");
   });
 
+  it("cancel calls DELETE /session/:id on the broker for a running tracked job", async () => {
+    // Start the broker so cancel can find an endpoint and reach our fake server.
+    runCompanion(["broker", "start"], { cwd: repo.path, env: envFor() });
+    // Manually plant a running JobState with a sessionId so cancel takes the
+    // broker-DELETE path. Using --background here would race the fake server
+    // (which completes synchronously), making the running-state window
+    // non-deterministic.
+    const fakeJobId = "test-running-job";
+    const fakeSessionId = "test-session-id";
+    const jobsDir = join(stateDir, "jobs");
+    require("node:fs").mkdirSync(jobsDir, { recursive: true });
+    require("node:fs").writeFileSync(
+      join(jobsDir, `${fakeJobId}.json`),
+      JSON.stringify({
+        id: fakeJobId,
+        kind: "review",
+        workspace: repo.path,
+        // Fake high pid that can't possibly belong to the test runner — cancelJob
+        // SIGTERMs this PID, which would otherwise terminate vitest itself.
+        pid: 2 ** 22,
+        started: new Date().toISOString(),
+        scope: "working-tree",
+        sessionId: fakeSessionId,
+        status: "running",
+      }),
+    );
+
+    const cancelOut = runCompanion(["cancel", "--job", fakeJobId], {
+      cwd: repo.path,
+      env: envFor(),
+    });
+    expect(cancelOut.status).toBe(0);
+
+    const deleteLog = (await import("./helpers.js")).findDeleteSession(repo.log);
+    expect(deleteLog).toBeDefined();
+    expect(deleteLog?.sessionId).toBe(fakeSessionId);
+  });
+
   it("cancel marks the job as cancelled", () => {
     const start = runCompanion(["review", "--background"], { cwd: repo.path, env: envFor() });
     const id = jobIdFromStdout(start.stdout);

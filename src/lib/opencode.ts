@@ -11,10 +11,11 @@ export interface OpencodeAvailability {
 
 export function checkOpencodeAvailable(): OpencodeAvailability {
   const result = runCommand(getOpencodeBin(), ["--version"]);
-  if (result.error?.code === "ENOENT") {
-    return { available: false, version: null };
-  }
-  if (result.status !== 0) {
+  // Any spawn error (ENOENT, EACCES, EPERM, ...) means the binary isn't
+  // usable. Earlier versions only checked ENOENT, which let an unrunnable
+  // binary report "available: true, version: null" and cascade into
+  // confusing broker failures downstream.
+  if (result.error !== null || result.status !== 0) {
     return { available: false, version: null };
   }
   return { available: true, version: result.stdout.trim() || null };

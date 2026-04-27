@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { createServer } from "node:net";
 import { dirname } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { fetchWithTimeout } from "./fetch-with-timeout.js";
 import { isProcessAlive } from "./job-control.js";
 import { getOpencodeBin } from "./opencode.js";
 import {
@@ -44,9 +45,9 @@ export function deleteLockfile(workspace: string): void {
 
 export async function pingServer(endpoint: ServerEndpoint): Promise<boolean> {
   try {
-    const res = await fetch(`${buildBaseUrl(endpoint)}/doc`, {
+    const res = await fetchWithTimeout(`${buildBaseUrl(endpoint)}/doc`, {
       headers: { Authorization: buildAuthHeader(endpoint.password) },
-      signal: AbortSignal.timeout(PING_TIMEOUT_MS),
+      timeoutMs: PING_TIMEOUT_MS,
     });
     return res.ok;
   } catch {
@@ -73,10 +74,21 @@ async function findFreePort(): Promise<number> {
 
 export async function ensureServerRunning(workspace: string): Promise<ServerEndpoint> {
   const existing = readLockfile(workspace);
-  if (existing !== null && isProcessAlive(existing.pid)) {
-    if (await pingServer(existing)) return existing;
+  if (existing !== null) {
+    if (isProcessAlive(existing.pid) && (await pingServer(existing))) return existing;
+    // Stale lockfile (dead pid) or unhealthy broker (alive pid, /doc not
+    // responding). In the unhealthy-but-alive case we have to SIGTERM the
+    // old process explicitly — it was spawned detached + unref'd, so
+    // dropping the lockfile alone would leak it.
+    if (isProcessAlive(existing.pid)) {
+      try {
+        process.kill(existing.pid, "SIGTERM");
+      } catch {
+        // already gone or no permission; lockfile cleanup below is enough
+      }
+    }
+    deleteLockfile(workspace);
   }
-  if (existing !== null) deleteLockfile(workspace);
   return startServer(workspace);
 }
 
@@ -90,7 +102,11 @@ async function startServer(workspace: string): Promise<ServerEndpoint> {
     {
       cwd: workspace,
       env: { ...process.env, OPENCODE_SERVER_PASSWORD: password },
-      stdio: ["ignore", "pipe", "pipe"],
+      // Discard stdout/stderr at the kernel rather than piping them — piped
+      // handles keep the parent's event loop alive even after child.unref(),
+      // which prevents process.exitCode-based clean exit. We don't need the
+      // child's logs (readiness comes from polling /doc).
+      stdio: "ignore",
       detached: true,
     },
   );
@@ -99,8 +115,6 @@ async function startServer(workspace: string): Promise<ServerEndpoint> {
     throw new Error("failed to spawn opencode serve");
   }
   child.unref();
-  child.stdout?.resume();
-  child.stderr?.resume();
 
   const endpoint: ServerEndpoint = {
     pid: child.pid,

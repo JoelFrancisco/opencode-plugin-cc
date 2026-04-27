@@ -138,6 +138,20 @@ if (subcommand === "serve") {
     const deleteMatch = url.match(/^\/session\/([^/]+)$/);
     if (req.method === "DELETE" && deleteMatch !== null) {
       sessions.delete(deleteMatch[1]);
+      if (logPath) {
+        try {
+          appendFileSync(
+            logPath,
+            JSON.stringify({
+              kind: "delete-session",
+              sessionId: deleteMatch[1],
+              ts: new Date().toISOString(),
+            }) + "\n",
+          );
+        } catch {
+          // ignore
+        }
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end("true");
       return;

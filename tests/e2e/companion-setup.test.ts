@@ -31,4 +31,15 @@ describe("companion setup (e2e, Layer A)", () => {
     expect(result.stdout).toContain("not installed or not on PATH");
     expect(result.stdout).toContain("opencode.ai/install");
   });
+
+  it("reports missing when OPENCODE_BIN points at an unrunnable path (EACCES)", () => {
+    // /etc/hosts exists but isn't executable, which yields EACCES on spawn —
+    // that should be classified as unavailable, not "installed (version unknown)".
+    const result = runCompanion(["setup"], {
+      cwd: repo.path,
+      env: { ...process.env, OPENCODE_BIN: "/etc/hosts" },
+    });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("not installed or not on PATH");
+  });
 });

@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch-with-timeout.js";
 import { buildAuthHeader, buildBaseUrl, parseModelRef, } from "./server-endpoint.js";
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 export class OpencodeClient {
@@ -12,11 +13,11 @@ export class OpencodeClient {
                 Authorization: buildAuthHeader(this.endpoint.password),
                 "Content-Type": "application/json",
             },
-            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+            timeoutMs: REQUEST_TIMEOUT_MS,
         };
         if (body !== undefined)
             init.body = JSON.stringify(body);
-        const res = await fetch(`${buildBaseUrl(this.endpoint)}${path}`, init);
+        const res = await fetchWithTimeout(`${buildBaseUrl(this.endpoint)}${path}`, init);
         if (!res.ok) {
             const text = await res.text().catch(() => "");
             throw new Error(`${method} ${path} failed: ${res.status} ${res.statusText}${text.length > 0 ? ` — ${text}` : ""}`);
@@ -30,9 +31,9 @@ export class OpencodeClient {
     }
     async ping() {
         try {
-            const res = await fetch(`${buildBaseUrl(this.endpoint)}/doc`, {
+            const res = await fetchWithTimeout(`${buildBaseUrl(this.endpoint)}/doc`, {
                 headers: { Authorization: buildAuthHeader(this.endpoint.password) },
-                signal: AbortSignal.timeout(2_000),
+                timeoutMs: 2_000,
             });
             return res.ok;
         }

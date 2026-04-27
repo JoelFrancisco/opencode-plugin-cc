@@ -3,7 +3,13 @@ import process from "node:process";
 import { parseArgs } from "node:util";
 import { type EffortLevel, validateEffort, validateModel } from "./lib/args.js";
 import { getBranchDiff, getStatus, getWorkingTreeDiff, isGitRepository } from "./lib/git.js";
-import { cancelJob, getLatestJob, readJobOutput, reconcileJobStatus } from "./lib/job-control.js";
+import {
+  cancelJob,
+  getLatestJob,
+  isProcessAlive,
+  readJobOutput,
+  reconcileJobStatus,
+} from "./lib/job-control.js";
 import { checkOpencodeAvailable, runOpencode } from "./lib/opencode.js";
 import {
   buildAdversarialReviewPrompt,
@@ -477,7 +483,7 @@ async function runBroker(argv: readonly string[]): Promise<number> {
   return 1;
 }
 
-function runCancel(argv: readonly string[]): number {
+async function runCancel(argv: readonly string[]): Promise<number> {
   try {
     const { values } = parseArgs({
       args: [...argv],
@@ -493,6 +499,21 @@ function runCancel(argv: readonly string[]): number {
         if (latest === null) throw new Error("No opencode reviews in this workspace.");
         return latest.id;
       })();
+
+    // Tell the broker to drop the live session before SIGTERMing the wrapper.
+    // Without this, cancel only kills our companion process — the broker keeps
+    // running the prompt to completion and the cancellation is non-authoritative.
+    const job = readJobState(targetId);
+    if (job !== null && job.status === "running" && job.sessionId !== undefined) {
+      const endpoint = readLockfile(job.workspace);
+      if (endpoint !== null && isProcessAlive(endpoint.pid)) {
+        try {
+          await new OpencodeClient(endpoint).deleteSession(job.sessionId);
+        } catch {
+          // best-effort: broker may already be down or session already gone
+        }
+      }
+    }
 
     const result = cancelJob(targetId);
     switch (result.outcome) {
@@ -531,7 +552,7 @@ async function main(): Promise<number> {
     case "result":
       return runResult(rest);
     case "cancel":
-      return runCancel(rest);
+      return await runCancel(rest);
     case "broker":
       return await runBroker(rest);
     case undefined:
@@ -546,4 +567,7 @@ async function main(): Promise<number> {
   }
 }
 
-process.exit(await main());
+// Use process.exitCode rather than process.exit() so Node drains stdio
+// pipes before terminating. process.exit() truncates piped stdout when
+// callers read the companion via spawnSync.
+process.exitCode = await main();
