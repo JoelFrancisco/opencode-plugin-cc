@@ -7,9 +7,11 @@ import { gitChecked, initGitRepo } from "../test-utils.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-// Plugin source dir is the repo root after the flat-layout collapse.
+// Plugin source dir lives at <repo>/plugins/opencode/. Tests run from
+// <plugin>/tests/e2e/, so PLUGIN_ROOT walks up two levels and REPO_ROOT
+// walks up two more (past plugins/<name>/) to where marketplace.json lives.
 export const PLUGIN_ROOT = resolve(HERE, "..", "..");
-export const REPO_ROOT = PLUGIN_ROOT;
+export const REPO_ROOT = resolve(PLUGIN_ROOT, "..", "..");
 export const COMPANION = join(PLUGIN_ROOT, "dist", "companion.js");
 export const FIXTURES_DIR = join(HERE, "fixtures");
 export const FAKE_OPENCODE = join(FIXTURES_DIR, "fake-opencode.mjs");

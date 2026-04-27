@@ -6,7 +6,9 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  plugins/opencode:
     devDependencies:
       '@types/node':
         specifier: ^25.0.0
