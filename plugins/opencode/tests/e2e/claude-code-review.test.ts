@@ -1,6 +1,16 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { fakeOpencodeEnv, findMessageCall, mkTmpRepo, REPO_ROOT, type TmpRepo } from "./helpers.js";
+import {
+  COMPANION,
+  fakeOpencodeEnv,
+  findMessageCall,
+  mkTmpRepo,
+  REPO_ROOT,
+  type TmpRepo,
+} from "./helpers.js";
 
 const E2E_ENABLED = process.env["CLAUDE_CODE_E2E"] === "1";
 
@@ -35,18 +45,22 @@ function installPlugin(cwd: string): void {
 describe.skipIf(!E2E_ENABLED)("Claude Code dispatches /opencode:review (e2e, Layer B)", () => {
   it("runs /opencode:review and returns the fake review body", () => {
     const repo: TmpRepo = mkTmpRepo({ withChanges: true });
+    // Per-test state dir so the broker the slash command spawns lands in a
+    // throwaway location and afterEach cleanup can reach it. Without this,
+    // the broker writes to the user's real XDG state and leaks across runs.
+    const stateDir = mkdtempSync(join(tmpdir(), "opencode-plugin-state-"));
     try {
       installPlugin(repo.path);
+
+      const env = {
+        ...fakeOpencodeEnv(repo),
+        OPENCODE_PLUGIN_STATE_DIR: stateDir,
+      };
 
       const result = spawnSync(
         "claude",
         ["-p", "/opencode:review --wait", "--dangerously-skip-permissions"],
-        {
-          cwd: repo.path,
-          env: fakeOpencodeEnv(repo),
-          encoding: "utf8",
-          timeout: 240_000,
-        },
+        { cwd: repo.path, env, encoding: "utf8", timeout: 240_000 },
       );
 
       if (result.status !== 0) {
@@ -65,6 +79,14 @@ describe.skipIf(!E2E_ENABLED)("Claude Code dispatches /opencode:review (e2e, Lay
       expect(call).toBeDefined();
       expect(call?.body.parts?.[0]?.text).toContain("## Diff");
     } finally {
+      // Kill the broker the slash command spawned. Without this every Layer B
+      // run leaks one detached fake-opencode `serve` process per test.
+      spawnSync("node", [COMPANION, "broker", "stop"], {
+        cwd: repo.path,
+        env: { ...process.env, OPENCODE_PLUGIN_STATE_DIR: stateDir },
+        encoding: "utf8",
+      });
+      rmSync(stateDir, { recursive: true, force: true });
       repo.cleanup();
     }
   }, 300_000);

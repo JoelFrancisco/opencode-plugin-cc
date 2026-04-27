@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  killAllBrokersIn,
   fakeOpencodeEnv,
   findMessageCall,
   mkTmpRepo,
@@ -28,7 +29,7 @@ describe("companion rescue (e2e, Layer A)", () => {
   });
 
   afterEach(() => {
-    runCompanion(["broker", "stop"], { cwd: repo.path, env: envFor() });
+    killAllBrokersIn(stateDir);
     repo.cleanup();
     rmSync(stateDir, { recursive: true, force: true });
   });

@@ -2,7 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fakeOpencodeEnv, mkTmpRepo, runCompanion, type TmpRepo } from "./helpers.js";
+import {
+  killAllBrokersIn,
+  fakeOpencodeEnv,
+  mkTmpRepo,
+  runCompanion,
+  type TmpRepo,
+} from "./helpers.js";
 
 describe("companion sessions (e2e, Layer A)", () => {
   let repo: TmpRepo;
@@ -14,7 +20,7 @@ describe("companion sessions (e2e, Layer A)", () => {
   });
 
   afterEach(() => {
-    runCompanion(["broker", "stop"], { cwd: repo.path, env: envFor() });
+    killAllBrokersIn(stateDir);
     repo.cleanup();
     rmSync(stateDir, { recursive: true, force: true });
   });

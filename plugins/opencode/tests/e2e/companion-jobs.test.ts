@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   fakeOpencodeEnv,
   findMessageCall,
+  killAllBrokersIn,
   mkTmpRepo,
   runCompanion,
   type TmpRepo,
@@ -26,6 +27,7 @@ describe("companion jobs (e2e, Layer A)", () => {
   });
 
   afterEach(() => {
+    killAllBrokersIn(stateDir);
     repo.cleanup();
     rmSync(stateDir, { recursive: true, force: true });
   });

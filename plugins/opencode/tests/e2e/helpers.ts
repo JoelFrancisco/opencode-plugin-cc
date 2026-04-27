@@ -151,6 +151,34 @@ export function findDeleteSession(logPath: string): FakeOpencodeDeleteSession | 
   );
 }
 
+// Multi-repo tests can leave brokers dangling in stateDir's lockfile dir even
+// after a per-cwd `companion broker stop`, since stop only targets the current
+// workspace's lockfile. Walking every lockfile and SIGTERMing the pid is
+// idempotent and covers all of them in one go.
+export function killAllBrokersIn(stateDir: string): void {
+  const serverDir = join(stateDir, "server");
+  let entries: string[];
+  try {
+    entries = require("node:fs").readdirSync(serverDir) as string[];
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.endsWith(".json")) continue;
+    let lockfile: { pid: number };
+    try {
+      lockfile = JSON.parse(readFileSync(join(serverDir, entry), "utf8")) as { pid: number };
+    } catch {
+      continue;
+    }
+    try {
+      process.kill(lockfile.pid, "SIGTERM");
+    } catch {
+      // already gone
+    }
+  }
+}
+
 export function fakeOpencodeEnv(repo: TmpRepo): NodeJS.ProcessEnv {
   return {
     ...process.env,

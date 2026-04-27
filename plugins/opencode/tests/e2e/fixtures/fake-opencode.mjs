@@ -172,12 +172,17 @@ if (subcommand === "serve") {
     }
   });
 
-  process.on("SIGTERM", () => {
-    server.close(() => process.exit(0));
-  });
-  process.on("SIGINT", () => {
-    server.close(() => process.exit(0));
-  });
+  // Exit immediately on signals. server.close() waits for in-flight
+  // connections to drain, which can hang the process indefinitely if the
+  // client side died with an open request — that's how you accumulate 30+
+  // orphaned fake-opencode processes after a few test iterations. We're a
+  // test stub; drop everything on the floor and exit.
+  const shutdown = () => {
+    server.closeAllConnections?.();
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 } else {
   process.stderr.write(`fake-opencode: unknown invocation: ${argv.join(" ")}\n`);
   process.exit(2);
