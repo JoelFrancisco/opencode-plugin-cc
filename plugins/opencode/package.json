@@ -1,0 +1,29 @@
+{
+  "name": "@opencode-plugin-cc/opencode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "opencode plugin for Claude Code.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:clean": "rm -rf dist && tsc -p tsconfig.build.json",
+    "lint": "oxlint src tests",
+    "fmt": "oxfmt src tests",
+    "fmt:check": "oxfmt --check src tests",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "CLAUDE_CODE_E2E=1 vitest run tests/e2e",
+    "test:live": "OPENCODE_LIVE_E2E=1 vitest run tests/live"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
+    "typescript": "^6.0.0",
+    "vitest": "^4.0.0"
+  }
+}

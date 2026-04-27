@@ -1,0 +1,25 @@
+{
+  "name": "opencode-plugin-cc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Use opencode from Claude Code to review code or delegate tasks.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "fmt": "pnpm -r fmt",
+    "fmt:check": "pnpm -r fmt:check",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm -r test:e2e",
+    "test:live": "pnpm -r test:live"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0"
+  }
+}

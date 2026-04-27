@@ -1,0 +1,8 @@
+node_modules/
+*.log
+*.tsbuildinfo
+**/.tsbuildinfo
+
+# dist/ is committed so the plugin works without a build step at install time.
+# Uncomment during dev if you don't want commits to include built output:
+# **/dist/

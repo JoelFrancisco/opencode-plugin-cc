@@ -1,0 +1,21 @@
+{
+  "name": "opencode-plugin-cc",
+  "owner": {
+    "name": "Joel Francisco"
+  },
+  "metadata": {
+    "description": "opencode plugins to use in Claude Code for code review and task delegation.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "opencode",
+      "description": "Use opencode from Claude Code to review code or delegate tasks.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Joel Francisco"
+      },
+      "source": "./plugins/opencode"
+    }
+  ]
+}
