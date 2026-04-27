@@ -40,9 +40,12 @@ describe("companion adversarial-review (e2e, Layer A)", () => {
     expect(result.status).toBe(0);
     const call = findMessageCall(repo.log);
     const prompt = call?.body.parts?.[0]?.text ?? "";
-    expect(prompt).toContain("adversarial review");
-    expect(prompt).toContain("challenge");
+    expect(prompt).toContain("adversarial code review");
+    expect(prompt).toContain("challenge the chosen implementation");
     expect(prompt).toContain("strongest argument FOR this approach");
+    // XML-tagged sections come from the prompts/adversarial-review.md template.
+    expect(prompt).toContain("<operating_stance>");
+    expect(prompt).toContain("<attack_surface>");
   });
 
   it("includes positional focus text under 'Focus areas'", () => {

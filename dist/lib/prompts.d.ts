@@ -1,5 +1,6 @@
 import type { EffortLevel } from "./args.js";
 export declare function effortInstruction(effort: EffortLevel | undefined): string | null;
+export declare function fillTemplate(template: string, vars: Readonly<Record<string, string>>): string;
 export interface ReviewPromptInput {
     readonly scope: "working-tree" | "branch";
     readonly base?: string;
