@@ -5,8 +5,8 @@ import { validateModel } from "./lib/args.js";
 import { getBranchDiff, getStatus, getWorkingTreeDiff, isGitRepository } from "./lib/git.js";
 import { cancelJob, getLatestJob, readJobOutput, reconcileJobStatus } from "./lib/job-control.js";
 import { checkOpencodeAvailable, runOpencode } from "./lib/opencode.js";
-import { buildReviewPrompt } from "./lib/prompts.js";
-import { runReviewViaBroker } from "./lib/review.js";
+import { buildAdversarialReviewPrompt, buildReviewPrompt } from "./lib/prompts.js";
+import { findLatestSessionByTitle, runReviewViaBroker } from "./lib/review.js";
 import { OpencodeClient } from "./lib/server-client.js";
 import { ensureServerRunning, pingServer, readLockfile, stopServer, } from "./lib/server-lifecycle.js";
 import { getOutputPath, listJobsForWorkspace, newJobId, readJobState, writeJobState, } from "./lib/state.js";
@@ -17,6 +17,10 @@ function printUsage() {
         "Usage:",
         "  companion setup              Check that opencode CLI is installed",
         "  companion review [opts]      Run a code review",
+        "  companion adversarial-review [opts] [focus...]",
+        "                               Run an adversarial review (challenges design + assumptions)",
+        "  companion rescue [opts] <task...>",
+        "                               Delegate a free-form task to opencode via the broker",
         "  companion status             List recent reviews in the current workspace",
         "  companion result [opts]      Print the output of a review",
         "  companion cancel [opts]      Cancel a running review",
@@ -56,10 +60,10 @@ function runSetup() {
     ].join("\n"));
     return 1;
 }
-async function runReview(argv) {
+async function runReview(argv, variant) {
     try {
         const cwd = process.cwd();
-        const { values } = parseArgs({
+        const { values, positionals } = parseArgs({
             args: [...argv],
             options: {
                 base: { type: "string" },
@@ -74,6 +78,7 @@ async function runReview(argv) {
         const model = values.model === undefined ? undefined : validateModel(values.model);
         const background = values.background === true;
         const noBroker = values["no-broker"] === true;
+        const focus = variant === "adversarial" && positionals.length > 0 ? positionals.join(" ") : undefined;
         if (!isGitRepository(cwd)) {
             throw new Error(`Not a git repository: ${cwd}`);
         }
@@ -87,12 +92,16 @@ async function runReview(argv) {
             return 0;
         }
         const scope = base === undefined ? "working-tree" : "branch";
-        const prompt = buildReviewPrompt({
+        const promptInput = {
             scope,
             ...(base === undefined ? {} : { base }),
             status,
             diff,
-        });
+            ...(focus === undefined ? {} : { focus }),
+        };
+        const prompt = variant === "adversarial"
+            ? buildAdversarialReviewPrompt(promptInput)
+            : buildReviewPrompt(promptInput);
         if (background) {
             return await runReviewTracked({
                 prompt,
@@ -192,6 +201,62 @@ async function runReviewTracked(options) {
     };
     writeJobState(finalState);
     return outcome.status;
+}
+const RESCUE_TITLE = "rescue";
+async function runRescue(argv) {
+    try {
+        const { values, positionals } = parseArgs({
+            args: [...argv],
+            options: {
+                model: { type: "string" },
+                resume: { type: "boolean" },
+                fresh: { type: "boolean" },
+                background: { type: "boolean" },
+                wait: { type: "boolean" },
+                "check-resume": { type: "boolean" },
+            },
+            allowPositionals: true,
+        });
+        const cwd = process.cwd();
+        if (values["check-resume"] === true) {
+            const endpoint = readLockfile(cwd);
+            if (endpoint === null || !(await pingServer(endpoint))) {
+                process.stdout.write(JSON.stringify({ available: false }) + "\n");
+                return 0;
+            }
+            const sessionId = await findLatestSessionByTitle(cwd, RESCUE_TITLE);
+            process.stdout.write(JSON.stringify(sessionId === null ? { available: false } : { available: true, sessionId }) +
+                "\n");
+            return 0;
+        }
+        if (!checkOpencodeAvailable().available) {
+            throw new Error("opencode CLI not found on PATH. Run /opencode:setup.");
+        }
+        const taskText = positionals.join(" ").trim();
+        if (taskText.length === 0) {
+            throw new Error("rescue: missing task description");
+        }
+        if (values.resume === true && values.fresh === true) {
+            throw new Error("rescue: --resume and --fresh are mutually exclusive");
+        }
+        const model = values.model === undefined ? undefined : validateModel(values.model);
+        const sessionId = values.resume === true ? await findLatestSessionByTitle(cwd, RESCUE_TITLE) : null;
+        const result = await runReviewViaBroker({
+            cwd,
+            prompt: taskText,
+            title: RESCUE_TITLE,
+            ...(sessionId === null ? {} : { sessionId }),
+            ...(model === undefined ? {} : { model }),
+        });
+        process.stdout.write(result.text);
+        if (!result.text.endsWith("\n"))
+            process.stdout.write("\n");
+        return 0;
+    }
+    catch (error) {
+        process.stderr.write(`${error.message}\n`);
+        return 1;
+    }
 }
 async function runSessions(_argv) {
     const cwd = process.cwd();
@@ -360,7 +425,11 @@ async function main() {
         case "setup":
             return runSetup();
         case "review":
-            return await runReview(rest);
+            return await runReview(rest, "default");
+        case "adversarial-review":
+            return await runReview(rest, "adversarial");
+        case "rescue":
+            return await runRescue(rest);
         case "sessions":
             return await runSessions(rest);
         case "status":
