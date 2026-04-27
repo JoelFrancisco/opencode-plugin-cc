@@ -6,6 +6,11 @@ or to delegate tasks to opencode.
 This plugin is for Claude Code users who want an easy way to start using
 opencode from the workflow they already have.
 
+> Inspired by and structurally modeled on
+> [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) — same
+> slash-command shape, same companion-script architecture, retargeted at
+> opencode's REST server instead of Codex's JSON-RPC app server.
+
 ## What You Get
 
 - `/opencode:review` for a normal read-only opencode review
