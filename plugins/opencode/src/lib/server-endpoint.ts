@@ -1,0 +1,44 @@
+import { createHash } from "node:crypto";
+import { join } from "node:path";
+import { getStateDir } from "./state.js";
+
+export interface ServerEndpoint {
+  readonly pid: number;
+  readonly host: string;
+  readonly port: number;
+  readonly password: string;
+  readonly workspace: string;
+  readonly started: string;
+}
+
+export function workspaceKey(workspace: string): string {
+  return createHash("sha256").update(workspace).digest("hex").slice(0, 16);
+}
+
+export function getServerLockfile(workspace: string): string {
+  return join(getStateDir(), "server", `${workspaceKey(workspace)}.json`);
+}
+
+export interface ModelRef {
+  readonly providerID: string;
+  readonly modelID: string;
+}
+
+export function parseModelRef(value: string): ModelRef {
+  const slash = value.indexOf("/");
+  if (slash <= 0 || slash === value.length - 1) {
+    throw new Error(`Invalid model: ${value} (expected provider/model)`);
+  }
+  return {
+    providerID: value.slice(0, slash),
+    modelID: value.slice(slash + 1),
+  };
+}
+
+export function buildAuthHeader(password: string): string {
+  return `Basic ${Buffer.from(`:${password}`).toString("base64")}`;
+}
+
+export function buildBaseUrl(endpoint: ServerEndpoint): string {
+  return `http://${endpoint.host}:${endpoint.port}`;
+}

@@ -7,6 +7,12 @@ import { cancelJob, getLatestJob, readJobOutput, reconcileJobStatus } from "./li
 import { checkOpencodeAvailable, runOpencode } from "./lib/opencode.js";
 import { buildReviewPrompt } from "./lib/prompts.js";
 import {
+  ensureServerRunning,
+  pingServer,
+  readLockfile,
+  stopServer,
+} from "./lib/server-lifecycle.js";
+import {
   getOutputPath,
   type JobState,
   listJobsForWorkspace,
@@ -26,6 +32,8 @@ function printUsage(): void {
       "  companion status             List recent reviews in the current workspace",
       "  companion result [opts]      Print the output of a review",
       "  companion cancel [opts]      Cancel a running review",
+      "  companion broker <action>    Manage the per-workspace opencode serve broker",
+      "                               (start | stop | status)",
       "",
       "Review options:",
       "  --base <ref>                 Compare against a branch ref (default: working tree)",
@@ -254,6 +262,56 @@ function runResult(argv: readonly string[]): number {
   }
 }
 
+async function runBroker(argv: readonly string[]): Promise<number> {
+  const action = argv[0];
+  const cwd = process.cwd();
+
+  if (action === "start") {
+    if (!checkOpencodeAvailable().available) {
+      process.stderr.write("opencode CLI not found on PATH. Run /opencode:setup.\n");
+      return 1;
+    }
+    try {
+      const endpoint = await ensureServerRunning(cwd);
+      process.stdout.write(
+        `Broker running at http://${endpoint.host}:${endpoint.port} (pid ${endpoint.pid}).\n`,
+      );
+      return 0;
+    } catch (error) {
+      process.stderr.write(`Failed to start broker: ${(error as Error).message}\n`);
+      return 1;
+    }
+  }
+  if (action === "stop") {
+    const result = stopServer(cwd);
+    if (!result.stopped) {
+      process.stdout.write("No broker running for this workspace.\n");
+      return 0;
+    }
+    process.stdout.write(`Stopped broker (pid ${result.endpoint?.pid}).\n`);
+    return 0;
+  }
+  if (action === "status") {
+    const endpoint = readLockfile(cwd);
+    if (endpoint === null) {
+      process.stdout.write("No broker registered for this workspace.\n");
+      return 0;
+    }
+    const reachable = await pingServer(endpoint);
+    const lines = [
+      `Broker pid:       ${endpoint.pid}`,
+      `Endpoint:         http://${endpoint.host}:${endpoint.port}`,
+      `Started:          ${endpoint.started}`,
+      `Reachable:        ${reachable ? "yes" : "no (stale lockfile)"}`,
+    ];
+    process.stdout.write(lines.join("\n") + "\n");
+    return 0;
+  }
+
+  process.stderr.write("Usage: companion broker <start|stop|status>\n");
+  return 1;
+}
+
 function runCancel(argv: readonly string[]): number {
   try {
     const { values } = parseArgs({
@@ -288,7 +346,7 @@ function runCancel(argv: readonly string[]): number {
   }
 }
 
-function main(): number {
+async function main(): Promise<number> {
   const subcommand = process.argv[2];
   const rest = process.argv.slice(3);
 
@@ -303,6 +361,8 @@ function main(): number {
       return runResult(rest);
     case "cancel":
       return runCancel(rest);
+    case "broker":
+      return await runBroker(rest);
     case undefined:
     case "--help":
     case "-h":
@@ -315,4 +375,4 @@ function main(): number {
   }
 }
 
-process.exit(main());
+process.exit(await main());
