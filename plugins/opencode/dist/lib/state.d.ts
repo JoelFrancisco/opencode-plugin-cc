@@ -9,6 +9,7 @@ export interface JobState {
     readonly model?: string;
     readonly base?: string;
     readonly scope: "working-tree" | "branch";
+    readonly sessionId?: string;
     status: JobStatus;
     ended?: string;
     exitCode?: number;

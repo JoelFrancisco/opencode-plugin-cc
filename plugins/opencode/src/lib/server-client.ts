@@ -17,8 +17,16 @@ interface MessageResponse {
   readonly parts?: readonly MessagePart[];
 }
 
-interface SessionInfo {
+export interface SessionInfo {
   readonly id: string;
+  readonly title?: string;
+  readonly time?: { readonly created?: number; readonly updated?: number };
+}
+
+export interface ListSessionsOptions {
+  readonly directory?: string;
+  readonly limit?: number;
+  readonly roots?: boolean;
 }
 
 export interface CreateSessionOptions {
@@ -70,6 +78,16 @@ export class OpencodeClient {
 
   async createSession(options: CreateSessionOptions = {}): Promise<SessionInfo> {
     return this.request<SessionInfo>("POST", "/session", { title: options.title ?? "review" });
+  }
+
+  async listSessions(options: ListSessionsOptions = {}): Promise<SessionInfo[]> {
+    const params = new URLSearchParams();
+    if (options.directory !== undefined) params.set("directory", options.directory);
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.roots === true) params.set("roots", "true");
+    const query = params.toString();
+    const path = query.length > 0 ? `/session?${query}` : "/session";
+    return this.request<SessionInfo[]>("GET", path);
   }
 
   async sendMessage(

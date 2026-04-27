@@ -6,6 +6,8 @@ import { getBranchDiff, getStatus, getWorkingTreeDiff, isGitRepository } from ".
 import { cancelJob, getLatestJob, readJobOutput, reconcileJobStatus } from "./lib/job-control.js";
 import { checkOpencodeAvailable, runOpencode } from "./lib/opencode.js";
 import { buildReviewPrompt } from "./lib/prompts.js";
+import { runReviewViaBroker } from "./lib/review.js";
+import { OpencodeClient } from "./lib/server-client.js";
 import { ensureServerRunning, pingServer, readLockfile, stopServer, } from "./lib/server-lifecycle.js";
 import { getOutputPath, listJobsForWorkspace, newJobId, readJobState, writeJobState, } from "./lib/state.js";
 function printUsage() {
@@ -20,12 +22,14 @@ function printUsage() {
         "  companion cancel [opts]      Cancel a running review",
         "  companion broker <action>    Manage the per-workspace opencode serve broker",
         "                               (start | stop | status)",
+        "  companion sessions           List opencode sessions in the current workspace",
         "",
         "Review options:",
         "  --base <ref>                 Compare against a branch ref (default: working tree)",
         "  --model <provider/model>     Override opencode model for this call only",
         "  --background                 Track this run as a job (output goes to state files)",
         "  --wait                       No-op at the companion level; consumed by /opencode:review",
+        "  --no-broker                  Bypass the broker and shell out to `opencode run` directly",
         "",
         "Result/cancel options:",
         "  --job <id>                   Target a specific job (default: most recent in workspace)",
@@ -52,7 +56,7 @@ function runSetup() {
     ].join("\n"));
     return 1;
 }
-function runReview(argv) {
+async function runReview(argv) {
     try {
         const cwd = process.cwd();
         const { values } = parseArgs({
@@ -62,12 +66,14 @@ function runReview(argv) {
                 model: { type: "string" },
                 background: { type: "boolean" },
                 wait: { type: "boolean" },
+                "no-broker": { type: "boolean" },
             },
             allowPositionals: true,
         });
         const base = values.base;
         const model = values.model === undefined ? undefined : validateModel(values.model);
         const background = values.background === true;
+        const noBroker = values["no-broker"] === true;
         if (!isGitRepository(cwd)) {
             throw new Error(`Not a git repository: ${cwd}`);
         }
@@ -87,23 +93,43 @@ function runReview(argv) {
             status,
             diff,
         });
-        return background
-            ? runReviewTracked({
+        if (background) {
+            return await runReviewTracked({
                 prompt,
                 cwd,
                 scope,
+                noBroker,
                 ...(base === undefined ? {} : { base }),
                 ...(model === undefined ? {} : { model }),
-            })
-            : runReviewForeground({ prompt, cwd, ...(model === undefined ? {} : { model }) });
+            });
+        }
+        return await runReviewForeground({
+            prompt,
+            cwd,
+            noBroker,
+            ...(model === undefined ? {} : { model }),
+        });
     }
     catch (error) {
         process.stderr.write(`${error.message}\n`);
         return 1;
     }
 }
-function runReviewForeground(options) {
-    const result = runOpencode(options);
+async function runReviewForeground(options) {
+    if (options.noBroker)
+        return runReviewForegroundSubprocess(options);
+    const result = await runReviewViaBroker(options);
+    process.stdout.write(result.text);
+    if (!result.text.endsWith("\n"))
+        process.stdout.write("\n");
+    return 0;
+}
+function runReviewForegroundSubprocess(options) {
+    const result = runOpencode({
+        prompt: options.prompt,
+        cwd: options.cwd,
+        ...(options.model === undefined ? {} : { model: options.model }),
+    });
     if (result.stdout.length > 0)
         process.stdout.write(result.stdout);
     if (result.stderr.length > 0)
@@ -113,7 +139,7 @@ function runReviewForeground(options) {
     }
     return result.status ?? 1;
 }
-function runReviewTracked(options) {
+async function runReviewTracked(options) {
     const id = newJobId();
     const state = {
         id,
@@ -129,27 +155,69 @@ function runReviewTracked(options) {
     writeJobState(state);
     process.stdout.write(`opencode review started: ${id}\n`);
     process.stdout.write(`Check progress with /opencode:status. Fetch output with /opencode:result.\n`);
-    const opencodeOptions = {
-        prompt: options.prompt,
-        cwd: options.cwd,
-        ...(options.model === undefined ? {} : { model: options.model }),
-    };
-    const result = runOpencode(opencodeOptions);
-    writeFileSync(getOutputPath(id, "stdout"), result.stdout);
-    writeFileSync(getOutputPath(id, "stderr"), result.stderr);
+    let outcome;
+    if (options.noBroker) {
+        const result = runOpencode({
+            prompt: options.prompt,
+            cwd: options.cwd,
+            ...(options.model === undefined ? {} : { model: options.model }),
+        });
+        writeFileSync(getOutputPath(id, "stdout"), result.stdout);
+        writeFileSync(getOutputPath(id, "stderr"), result.stderr);
+        outcome = { status: result.status ?? 1 };
+    }
+    else {
+        try {
+            const result = await runReviewViaBroker(options);
+            writeFileSync(getOutputPath(id, "stdout"), result.text);
+            writeFileSync(getOutputPath(id, "stderr"), "");
+            outcome = { status: 0, sessionId: result.sessionId };
+        }
+        catch (error) {
+            writeFileSync(getOutputPath(id, "stdout"), "");
+            writeFileSync(getOutputPath(id, "stderr"), `${error.message}\n`);
+            outcome = { status: 1 };
+        }
+    }
     // If /opencode:cancel raced with us and already wrote "cancelled", don't clobber it.
     const current = readJobState(id);
     if (current !== null && current.status === "cancelled")
         return 130;
     const finalState = {
         ...state,
-        status: result.status === 0 ? "completed" : "failed",
+        status: outcome.status === 0 ? "completed" : "failed",
         ended: new Date().toISOString(),
-        exitCode: result.status ?? 1,
-        ...(result.error === null ? {} : { errorMessage: result.error.message }),
+        exitCode: outcome.status,
+        ...(outcome.sessionId === undefined ? {} : { sessionId: outcome.sessionId }),
     };
     writeJobState(finalState);
-    return result.status ?? 1;
+    return outcome.status;
+}
+async function runSessions(_argv) {
+    const cwd = process.cwd();
+    const endpoint = readLockfile(cwd);
+    if (endpoint === null) {
+        process.stdout.write("No broker running for this workspace. Start one with `/opencode:broker start`.\n");
+        return 0;
+    }
+    if (!(await pingServer(endpoint))) {
+        process.stdout.write("Broker lockfile present but server is unreachable.\n");
+        return 1;
+    }
+    const client = new OpencodeClient(endpoint);
+    const sessions = await client.listSessions({ directory: cwd, limit: 20 });
+    if (sessions.length === 0) {
+        process.stdout.write("No opencode sessions in this workspace.\n");
+        return 0;
+    }
+    process.stdout.write(`opencode sessions in ${cwd}:\n\n`);
+    for (const session of sessions) {
+        const title = session.title ?? "(untitled)";
+        const updated = session.time?.updated;
+        const updatedStr = updated === undefined ? "(no timestamp)" : new Date(updated).toISOString();
+        process.stdout.write(`  ${session.id}  ${updatedStr}  ${title}\n`);
+    }
+    return 0;
 }
 function runStatus(argv) {
     const { values } = parseArgs({
@@ -292,7 +360,9 @@ async function main() {
         case "setup":
             return runSetup();
         case "review":
-            return runReview(rest);
+            return await runReview(rest);
+        case "sessions":
+            return await runSessions(rest);
         case "status":
             return runStatus(rest);
         case "result":

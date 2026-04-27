@@ -1,6 +1,6 @@
 ---
 description: Run an opencode code review against local git state
-argument-hint: '[--wait|--background] [--base <ref>] [--model <provider/model>]'
+argument-hint: '[--wait|--background] [--base <ref>] [--model <provider/model>] [--no-broker]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
@@ -36,6 +36,7 @@ Argument handling:
 - Do not strip `--wait` or `--background` yourself.
 - Do not add extra review instructions or rewrite the user's intent.
 - The companion script consumes `--background` to write job state; Claude Code's `Bash(..., run_in_background: true)` is what actually detaches the run.
+- Reviews go through the per-workspace `opencode serve` broker by default. Pass `--no-broker` to fall back to a one-shot `opencode run` subprocess (useful when the broker is misbehaving).
 
 Foreground flow:
 - Run:
