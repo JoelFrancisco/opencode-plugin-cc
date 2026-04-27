@@ -102,6 +102,29 @@ describe("companion review (e2e, Layer A)", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("opencode CLI not found");
     });
+
+    it("appends the --effort high hint to the prompt", () => {
+      runCompanion(["review", "--effort", "high"], { cwd: repo.path, env: envFor() });
+      const prompt = findMessageCall(repo.log)?.body.parts?.[0]?.text ?? "";
+      expect(prompt).toContain("Think carefully through edge cases");
+    });
+
+    it("--effort medium adds no hint (it's the baseline)", () => {
+      runCompanion(["review", "--effort", "medium"], { cwd: repo.path, env: envFor() });
+      const prompt = findMessageCall(repo.log)?.body.parts?.[0]?.text ?? "";
+      expect(prompt).not.toContain("Think carefully");
+      expect(prompt).not.toContain("Answer in 1-2 sentences");
+    });
+
+    it("rejects unknown --effort values before doing any work", () => {
+      const result = runCompanion(["review", "--effort", "ultra"], {
+        cwd: repo.path,
+        env: envFor(),
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Invalid --effort");
+      expect(findMessageCall(repo.log)).toBeUndefined();
+    });
   });
 
   describe("subprocess path (--no-broker)", () => {

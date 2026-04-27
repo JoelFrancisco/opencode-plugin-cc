@@ -320,6 +320,25 @@ opencode run --session <session-id>
 Or use the plugin's own `/opencode:rescue --resume` to continue the latest
 rescue thread without leaving Claude Code.
 
+### `--effort`
+
+Soft hint passed to `/opencode:review`, `/opencode:adversarial-review`, and
+`/opencode:rescue`. Accepts the same vocabulary as codex-plugin-cc:
+`none | minimal | low | medium | high | xhigh`. Default is unset, which
+means `medium` (no extra prompt instruction).
+
+opencode does not have a uniform reasoning-effort API the way codex's
+`--effort` does — different providers expose different knobs (Anthropic
+thinking budget, OpenAI reasoning effort, none for Moonshot). Rather than
+trying to translate per-provider, the plugin appends a one-line instruction
+to the prompt (e.g. "Think carefully through edge cases…" for `high`,
+"Answer in 1-2 sentences max…" for `minimal`). Different providers will
+respond to that instruction differently — it's a heuristic, not a
+guaranteed model parameter.
+
+If you want hard control over reasoning depth on a specific provider, set
+it in opencode's config rather than relying on `--effort`.
+
 ## Out-of-Scope vs codex-plugin-cc
 
 A few codex-plugin-cc features are intentionally not mirrored here:
@@ -327,9 +346,6 @@ A few codex-plugin-cc features are intentionally not mirrored here:
 - **Stop-time review gate** — codex prompts for a review on session stop;
   this plugin doesn't (the loop risk and usage drain aren't worth it for
   most workflows).
-- **`--effort`** — provider-specific in opencode (Anthropic thinking budget
-  vs OpenAI reasoning effort vs none for Moonshot); not portable through a
-  single flag. Configure it per-provider in `opencode.json`.
 - **`--write`** — opencode's tools are write-capable by default, no analog
   needed.
 - **Model aliases** — codex's `spark → gpt-5.3-codex-spark`-style mappings.

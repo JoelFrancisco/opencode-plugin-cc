@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateModel } from "../src/lib/args.js";
+import { EFFORT_LEVELS, validateEffort, validateModel } from "../src/lib/args.js";
 
 describe("validateModel", () => {
   it("accepts simple provider/model", () => {
@@ -27,5 +27,23 @@ describe("validateModel", () => {
 
   it("rejects empty strings", () => {
     expect(() => validateModel("")).toThrow(/Invalid --model/);
+  });
+});
+
+describe("validateEffort", () => {
+  it("accepts every documented level", () => {
+    for (const level of EFFORT_LEVELS) {
+      expect(validateEffort(level)).toBe(level);
+    }
+  });
+
+  it("rejects unknown levels with a helpful message", () => {
+    expect(() => validateEffort("ultra")).toThrow(
+      /Invalid --effort.*expected one of: none, minimal, low, medium, high, xhigh/,
+    );
+  });
+
+  it("rejects empty strings", () => {
+    expect(() => validateEffort("")).toThrow(/Invalid --effort/);
   });
 });

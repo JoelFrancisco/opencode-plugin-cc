@@ -1,6 +1,6 @@
 ---
 description: Run an opencode adversarial review that challenges the implementation approach and design choices
-argument-hint: '[--wait|--background] [--base <ref>] [--model <provider/model>] [--no-broker] [focus...]'
+argument-hint: '[--wait|--background] [--base <ref>] [--model <provider/model>] [--effort <level>] [--no-broker] [focus...]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---

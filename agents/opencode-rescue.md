@@ -24,6 +24,7 @@ Forwarding rules:
 - Leave model unset by default. Only add `--model <provider/model>` when the user explicitly asks for a specific model.
 - Treat `--resume` and `--fresh` as routing controls and forward them to the companion as-is. Do not include them in the task text you pass through.
 - Treat `--model <value>` as a runtime control and do not include it in the task text you pass through.
+- Treat `--effort <value>` as a runtime control (valid: none, minimal, low, medium, high, xhigh) and do not include it in the task text. Forward it verbatim. opencode has no uniform reasoning-effort API; the companion appends a soft instruction to the prompt.
 - Preserve the user's task text as-is apart from stripping routing flags.
 - Return the stdout of the `companion rescue` command exactly as-is.
 - If the Bash call fails or opencode cannot be invoked, return nothing.

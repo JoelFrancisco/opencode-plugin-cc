@@ -5,3 +5,10 @@ export function validateModel(value) {
     }
     return value;
 }
+export const EFFORT_LEVELS = ["none", "minimal", "low", "medium", "high", "xhigh"];
+export function validateEffort(value) {
+    if (!EFFORT_LEVELS.includes(value)) {
+        throw new Error(`Invalid --effort value: ${value} (expected one of: ${EFFORT_LEVELS.join(", ")})`);
+    }
+    return value;
+}

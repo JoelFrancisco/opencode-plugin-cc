@@ -58,9 +58,13 @@ ceremony. If a second plugin ever lands, restore the workspace shape.
 
 Out-of-scope for now (codex-plugin-cc has them; we don't):
 - Stop-time review gate hook (codex prompts for a review on session stop).
-- `--effort` flag (provider-specific in opencode; not portable through one knob).
 - `--write` flag (opencode's tools are write-capable by default).
 - Model aliases (codex's `spark → gpt-5.3-codex-spark`-style mappings).
+
+`--effort` is supported but as a soft prompt-suffix hint, not a uniform
+reasoning-effort API parameter — opencode doesn't expose one across
+providers, so the companion appends a per-level instruction to the prompt.
+Same vocabulary as codex (`none|minimal|low|medium|high|xhigh`).
 
 ## Toolchain decisions
 

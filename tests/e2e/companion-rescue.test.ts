@@ -122,4 +122,23 @@ describe("companion rescue (e2e, Layer A)", () => {
       modelID: "claude-sonnet-4-6",
     });
   });
+
+  it("appends the --effort high hint to the task text", () => {
+    runCompanion(["rescue", "--effort", "high", "investigate"], {
+      cwd: repo.path,
+      env: envFor(),
+    });
+    const prompt = findMessageCall(repo.log)?.body.parts?.[0]?.text ?? "";
+    expect(prompt.startsWith("investigate")).toBe(true);
+    expect(prompt).toContain("Think carefully through edge cases");
+  });
+
+  it("rejects unknown --effort values", () => {
+    const result = runCompanion(["rescue", "--effort", "ultra", "do thing"], {
+      cwd: repo.path,
+      env: envFor(),
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Invalid --effort");
+  });
 });

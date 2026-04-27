@@ -1,11 +1,11 @@
 import { writeFileSync } from "node:fs";
 import process from "node:process";
 import { parseArgs } from "node:util";
-import { validateModel } from "./lib/args.js";
+import { validateEffort, validateModel } from "./lib/args.js";
 import { getBranchDiff, getStatus, getWorkingTreeDiff, isGitRepository } from "./lib/git.js";
 import { cancelJob, getLatestJob, readJobOutput, reconcileJobStatus } from "./lib/job-control.js";
 import { checkOpencodeAvailable, runOpencode } from "./lib/opencode.js";
-import { buildAdversarialReviewPrompt, buildReviewPrompt } from "./lib/prompts.js";
+import { buildAdversarialReviewPrompt, buildReviewPrompt, effortInstruction, } from "./lib/prompts.js";
 import { findLatestSessionByTitle, runReviewViaBroker } from "./lib/review.js";
 import { OpencodeClient } from "./lib/server-client.js";
 import { ensureServerRunning, pingServer, readLockfile, stopServer, } from "./lib/server-lifecycle.js";
@@ -34,6 +34,8 @@ function printUsage() {
         "  --background                 Track this run as a job (output goes to state files)",
         "  --wait                       No-op at the companion level; consumed by /opencode:review",
         "  --no-broker                  Bypass the broker and shell out to `opencode run` directly",
+        "  --effort <level>             Soft hint appended to the prompt:",
+        "                                 none, minimal, low, medium (default), high, xhigh",
         "",
         "Result/cancel options:",
         "  --job <id>                   Target a specific job (default: most recent in workspace)",
@@ -71,11 +73,13 @@ async function runReview(argv, variant) {
                 background: { type: "boolean" },
                 wait: { type: "boolean" },
                 "no-broker": { type: "boolean" },
+                effort: { type: "string" },
             },
             allowPositionals: true,
         });
         const base = values.base;
         const model = values.model === undefined ? undefined : validateModel(values.model);
+        const effort = values.effort === undefined ? undefined : validateEffort(values.effort);
         const background = values.background === true;
         const noBroker = values["no-broker"] === true;
         const focus = variant === "adversarial" && positionals.length > 0 ? positionals.join(" ") : undefined;
@@ -98,6 +102,7 @@ async function runReview(argv, variant) {
             status,
             diff,
             ...(focus === undefined ? {} : { focus }),
+            ...(effort === undefined ? {} : { effort }),
         };
         const prompt = variant === "adversarial"
             ? buildAdversarialReviewPrompt(promptInput)
@@ -214,6 +219,7 @@ async function runRescue(argv) {
                 background: { type: "boolean" },
                 wait: { type: "boolean" },
                 "check-resume": { type: "boolean" },
+                effort: { type: "string" },
             },
             allowPositionals: true,
         });
@@ -240,10 +246,13 @@ async function runRescue(argv) {
             throw new Error("rescue: --resume and --fresh are mutually exclusive");
         }
         const model = values.model === undefined ? undefined : validateModel(values.model);
+        const effort = values.effort === undefined ? undefined : validateEffort(values.effort);
+        const effortHint = effortInstruction(effort);
+        const prompt = effortHint === null ? taskText : `${taskText}\n\n${effortHint}`;
         const sessionId = values.resume === true ? await findLatestSessionByTitle(cwd, RESCUE_TITLE) : null;
         const result = await runReviewViaBroker({
             cwd,
-            prompt: taskText,
+            prompt,
             title: RESCUE_TITLE,
             ...(sessionId === null ? {} : { sessionId }),
             ...(model === undefined ? {} : { model }),

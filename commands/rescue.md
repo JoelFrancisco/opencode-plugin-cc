@@ -1,6 +1,6 @@
 ---
 description: Delegate investigation, an explicit fix request, or follow-up rescue work to the opencode rescue subagent
-argument-hint: '[--background|--wait] [--resume|--fresh] [--model <provider/model>] [task...]'
+argument-hint: '[--background|--wait] [--resume|--fresh] [--model <provider/model>] [--effort <level>] [task...]'
 allowed-tools: Bash(node:*), AskUserQuestion, Agent
 ---
 
@@ -20,6 +20,7 @@ Execution mode:
 - If neither flag is present, default to foreground.
 - `--background` and `--wait` are execution flags for Claude Code. Do not forward them to `companion rescue`, and do not treat them as part of the task text.
 - `--model` is a runtime-selection flag. Preserve it for the forwarded call, but do not treat it as part of the task text.
+- `--effort <level>` is also a runtime-selection flag (accepted values: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`). Preserve it for the forwarded call, but do not treat it as part of the task text. Note that opencode does not have a uniform reasoning-effort API, so the plugin appends a soft instruction to the prompt — actual model behavior varies by provider.
 - If the request includes `--resume`, do not ask whether to continue. The user already chose.
 - If the request includes `--fresh`, do not ask whether to continue. The user already chose.
 - Otherwise, before starting opencode, check for a resumable rescue thread by running:
