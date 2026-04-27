@@ -29,7 +29,7 @@ describe.skipIf(!LIVE_ENABLED)("live opencode review (Layer C, real API calls)",
     () => {
       const model = process.env["OPENCODE_LIVE_MODEL"];
       if (model === undefined) return;
-      const result = runCompanion(["review", "--model", model], {
+      const result = runCompanion(["review", "--no-broker", "--model", model], {
         cwd: repo.path,
         env: process.env,
         timeoutMs: 300_000,

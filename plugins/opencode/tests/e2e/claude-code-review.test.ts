@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { fakeOpencodeEnv, findRunCall, mkTmpRepo, REPO_ROOT, type TmpRepo } from "./helpers.js";
+import { fakeOpencodeEnv, findMessageCall, mkTmpRepo, REPO_ROOT, type TmpRepo } from "./helpers.js";
 
 const E2E_ENABLED = process.env["CLAUDE_CODE_E2E"] === "1";
 
@@ -40,7 +40,7 @@ describe.skipIf(!E2E_ENABLED)("Claude Code dispatches /opencode:review (e2e, Lay
 
       const result = spawnSync(
         "claude",
-        ["-p", "/opencode:review", "--dangerously-skip-permissions"],
+        ["-p", "/opencode:review --wait", "--dangerously-skip-permissions"],
         {
           cwd: repo.path,
           env: fakeOpencodeEnv(repo),
@@ -56,11 +56,14 @@ describe.skipIf(!E2E_ENABLED)("Claude Code dispatches /opencode:review (e2e, Lay
         );
       }
 
-      expect(result.stdout).toContain("Fake Review");
+      // Reviews go through the broker by default, so the fake server should
+      // have logged the POST /session/:id/message call. The assistant text
+      // surfaces via Claude Code's stdout transcript.
+      expect(result.stdout).toContain("Fake Broker Review");
 
-      const call = findRunCall(repo.log);
+      const call = findMessageCall(repo.log);
       expect(call).toBeDefined();
-      expect(call?.prompt).toContain("## Diff");
+      expect(call?.body.parts?.[0]?.text).toContain("## Diff");
     } finally {
       repo.cleanup();
     }
