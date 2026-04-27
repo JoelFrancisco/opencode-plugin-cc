@@ -7,13 +7,35 @@ opencode's REST server + `run` CLI for Codex's JSON-RPC app server.
 
 ## Status
 
-Step 1 (MVP):
-- `/opencode:setup` — verifies the local opencode CLI is installed.
-- `/opencode:review` — runs a foreground review against the working tree or a
-  branch ref, using whatever model opencode is configured to use (override with
-  `--model <provider/model>`).
+Feature parity with codex-plugin-cc, minus the few items called out in
+[`AGENTS.md`](./AGENTS.md).
 
-See [`AGENTS.md`](./AGENTS.md) for the planned full-parity scope.
+### Slash commands
+
+- `/opencode:setup` — verifies the local opencode CLI is installed.
+- `/opencode:review` — runs a code review (foreground or background) with
+  diff scope `[--base <ref>]` and optional `[--model <provider/model>]`.
+- `/opencode:adversarial-review [focus...]` — same scope selection but
+  reframes the prompt around design / assumption challenges.
+- `/opencode:rescue <task>` — free-form task delegation through the
+  `opencode:opencode-rescue` subagent. `--resume` reuses the workspace's
+  most recent rescue thread; `--fresh` always starts a new one.
+- `/opencode:status`, `/opencode:result [--job <id>]`, `/opencode:cancel
+  [--job <id>]` — manage tracked background jobs.
+- `/opencode:broker {start|stop|status}` — manual control over the
+  per-workspace `opencode serve` process.
+- `/opencode:sessions` — list workspace sessions on the running broker.
+
+### Hooks
+
+- `SessionEnd` kills the per-workspace broker so `opencode serve`
+  processes don't leak across Claude Code sessions.
+
+### Skills
+
+- `opencode-cli-runtime` — companion subcommand reference.
+- `opencode-result-handling` — verbatim-stdout contract.
+- `opencode-prompting` — generic, model-agnostic prompting guidance.
 
 ## Development
 
