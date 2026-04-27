@@ -1,0 +1,27 @@
+{
+  "description": "Broker lifecycle hooks for the opencode plugin. SessionEnd kills the per-workspace `opencode serve` broker so it doesn't leak across Claude Code sessions.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/session-lifecycle-hook.js\" SessionStart",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/session-lifecycle-hook.js\" SessionEnd",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
