@@ -4,22 +4,26 @@
   "private": true,
   "type": "module",
   "description": "Use opencode from Claude Code to review code or delegate tasks.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "engines": {
-    "node": ">=20",
-    "pnpm": ">=9"
+    "node": ">=20"
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "fmt": "pnpm -r fmt",
-    "fmt:check": "pnpm -r fmt:check",
-    "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
-    "test:e2e": "pnpm -r test:e2e",
-    "test:live": "pnpm -r test:live"
+    "build": "tsc -p tsconfig.build.json",
+    "build:clean": "rm -rf dist && tsc -p tsconfig.build.json",
+    "lint": "oxlint src tests",
+    "fmt": "oxfmt src tests",
+    "fmt:check": "oxfmt --check src tests",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "CLAUDE_CODE_E2E=1 vitest run tests/e2e",
+    "test:live": "OPENCODE_LIVE_E2E=1 vitest run tests/live"
   },
   "devDependencies": {
-    "typescript": "^6.0.0"
+    "@types/node": "^25.0.0",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
+    "typescript": "^6.0.0",
+    "vitest": "^4.0.0"
   }
 }

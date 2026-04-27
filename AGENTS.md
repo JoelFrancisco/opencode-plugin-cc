@@ -9,7 +9,24 @@ build order live here so future contributors (human or AI) don't re-derive them.
 - `/tmp/codex-plugin-cc` — upstream Claude Code plugin we mirror. Read its
   `plugins/codex/scripts/` and `plugins/codex/commands/` for behavior parity.
 - `/tmp/opencode` — opencode source. `packages/opencode/src/server/` is the
-  REST + SSE surface this plugin will eventually drive.
+  REST + SSE surface this plugin drives.
+
+## Repo layout
+
+Flat single-package layout. The repo root *is* the plugin source dir:
+
+```
+.claude-plugin/{marketplace,plugin}.json
+src/                  # TypeScript source (compiled to dist/)
+dist/                 # committed build output, referenced by hooks/commands
+tests/                # unit + e2e + live, organized by layer
+commands/  agents/  skills/  hooks/   # Claude Code plugin surface
+package.json  tsconfig{,.build}.json  vitest.config.ts
+```
+
+No pnpm workspaces — codex-plugin-cc reserves `plugins/<name>/` directories
+because they ship multiple plugins; we only ship one, so the extra layer was
+ceremony. If a second plugin ever lands, restore the workspace shape.
 
 ## Architecture
 
@@ -48,7 +65,8 @@ Out-of-scope for now (codex-plugin-cc has them; we don't):
 ## Toolchain decisions
 
 - **TypeScript 6 + ESM (NodeNext).** `.js` extensions in TS imports.
-- **pnpm workspaces.** Root is dev-only; `plugins/opencode` is the shippable unit.
+- **Single-package, no workspaces.** One `package.json` at root. `pnpm install`
+  is the only thing contributors need.
 - **oxlint** for fast structural lint, **`tsc --noEmit`** for type semantics.
   Don't try to make oxlint match `@typescript-eslint` rule-for-rule.
 - **oxfmt** for formatting (still young — pin the version, fall back to prettier

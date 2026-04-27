@@ -18,6 +18,9 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": false,
-    "sourceMap": false
-  }
+    "sourceMap": false,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "tests/**/*", "vitest.config.ts"]
 }

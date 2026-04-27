@@ -41,11 +41,13 @@ Feature parity with codex-plugin-cc, minus the few items called out in
 
 ```bash
 pnpm install
-pnpm build         # tsc → plugins/opencode/dist
+pnpm build         # tsc → dist/
 pnpm typecheck
 pnpm lint          # oxlint
 pnpm fmt:check     # oxfmt
-pnpm test          # vitest
+pnpm test          # vitest (Layers 0 + A)
+pnpm test:e2e      # adds Layer B (Claude Code dispatch)
+pnpm test:live     # adds Layer C (real opencode + real model)
 ```
 
 The compiled `dist/` is committed so the plugin works without a build step at
