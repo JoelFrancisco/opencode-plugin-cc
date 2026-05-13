@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 function git(cwd: string, args: readonly string[]): void {
-  const result = spawnSync("git", [...args], { cwd, encoding: "utf8" });
+  const result = spawnSync("git", [...args], { cwd, encoding: "utf8", shell: process.platform === "win32" });
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
   }
