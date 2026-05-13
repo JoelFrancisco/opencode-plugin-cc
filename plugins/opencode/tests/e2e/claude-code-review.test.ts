@@ -20,7 +20,7 @@ function installPlugin(cwd: string): void {
   const marketplaceAdd = spawnSync(
     "claude",
     ["plugin", "marketplace", "add", REPO_ROOT, "--scope", "project"],
-    { cwd, env, encoding: "utf8" },
+    { cwd, env, encoding: "utf8", shell: process.platform === "win32" },
   );
   if (marketplaceAdd.status !== 0) {
     throw new Error(
@@ -32,7 +32,7 @@ function installPlugin(cwd: string): void {
   const install = spawnSync(
     "claude",
     ["plugin", "install", "opencode@opencode-plugin-cc", "--scope", "project"],
-    { cwd, env, encoding: "utf8" },
+    { cwd, env, encoding: "utf8", shell: process.platform === "win32" },
   );
   if (install.status !== 0) {
     throw new Error(
@@ -60,7 +60,7 @@ describe.skipIf(!E2E_ENABLED)("Claude Code dispatches /opencode:review (e2e, Lay
       const result = spawnSync(
         "claude",
         ["-p", "/opencode:review --wait", "--dangerously-skip-permissions"],
-        { cwd: repo.path, env, encoding: "utf8", timeout: 240_000 },
+        { cwd: repo.path, env, encoding: "utf8", timeout: 240_000, shell: process.platform === "win32" },
       );
 
       if (result.status !== 0) {
@@ -85,6 +85,7 @@ describe.skipIf(!E2E_ENABLED)("Claude Code dispatches /opencode:review (e2e, Lay
         cwd: repo.path,
         env: { ...process.env, OPENCODE_PLUGIN_STATE_DIR: stateDir },
         encoding: "utf8",
+        shell: process.platform === "win32",
       });
       rmSync(stateDir, { recursive: true, force: true });
       repo.cleanup();

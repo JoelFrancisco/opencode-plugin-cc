@@ -74,6 +74,7 @@ export function runCompanion(
     env: options.env ?? process.env,
     encoding: "utf8",
     timeout: options.timeoutMs ?? 30_000,
+    shell: process.platform === "win32",
   });
   return {
     status: result.status,

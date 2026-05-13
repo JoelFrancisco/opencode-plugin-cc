@@ -28,6 +28,7 @@ export function runCommand(
     input: options.input,
     maxBuffer: options.maxBuffer ?? DEFAULT_MAX_BUFFER,
     encoding: "utf8",
+    shell: process.platform === "win32",
   });
 
   return {
